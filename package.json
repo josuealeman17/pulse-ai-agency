@@ -1,0 +1,20 @@
+{
+  "name": "pulse-ai-agency",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Pulse — multi-tenant AI chatbot + email review engine SaaS platform",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=@pulse/api",
+    "dev:widget": "npm run dev --workspace=@pulse/widget",
+    "dev:dashboard": "npm run dev --workspace=@pulse/dashboard",
+    "build": "npm run build --workspaces --if-present",
+    "build:widget": "npm run build --workspace=@pulse/widget",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

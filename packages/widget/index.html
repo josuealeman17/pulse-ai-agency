@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pulse Widget — Dev Harness</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #f8fafc; color: #0f172a; }
+      .page { max-width: 720px; margin: 0 auto; padding: 64px 24px; }
+      h1 { font-size: 28px; }
+      p { color: #475569; line-height: 1.6; }
+      .hint { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-top: 24px; }
+      code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Pulse Widget — Dev Harness</h1>
+      <p>This page simulates a client's website. The chat bubble in the bottom-right is the embeddable widget, running against the local API.</p>
+      <div class="hint">
+        <strong>Before testing:</strong>
+        <p>Run the API in another terminal: <code>npm run dev:api</code> (needs <code>ANTHROPIC_API_KEY</code> in <code>.env</code>).</p>
+        <p>The widget below uses <code>data-client-id="demo"</code> → the in-memory demo business config.</p>
+      </div>
+    </div>
+
+    <!-- Settings carrier: readSettings() reads these data-* attributes. -->
+    <script
+      data-client-id="21ead087-c145-4217-88b9-b0f1cd0ff5fb"
+      data-theme="light"
+      data-accent="#0EA5E9"
+      data-api="http://localhost:8787"
+    ></script>
+    <!-- Dev entry (production builds a single chat.js instead). -->
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

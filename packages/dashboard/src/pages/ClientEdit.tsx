@@ -1,0 +1,203 @@
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import type { BusinessInfo, ChatConfig, Client } from "@pulse/db";
+import { supabase, API_URL, WIDGET_URL } from "../lib/supabase.js";
+import { Button, Card, Field, Input, PageHeader, Textarea } from "../components/ui.js";
+
+type ClientForm = Pick<
+  Client,
+  | "name" | "business_type" | "city" | "state" | "phone" | "email" | "website_url"
+  | "google_review_url" | "accent_color" | "booking_mode" | "calcom_event_type_id" | "calcom_timezone"
+>;
+
+const blankClient: ClientForm = {
+  name: "", business_type: "", city: "", state: "", phone: "", email: "",
+  website_url: "", google_review_url: "", accent_color: "#2563EB",
+  booking_mode: "calcom", calcom_event_type_id: "", calcom_timezone: "America/Denver",
+};
+const blankInfo: BusinessInfo = {
+  business_info: "", services_list: "", hours: "", pricing_info: "", policies: "", faqs: "",
+};
+
+export function ClientEdit() {
+  const { id } = useParams();
+  const isNew = !id;
+  const navigate = useNavigate();
+
+  const [client, setClient] = useState<ClientForm>(blankClient);
+  const [info, setInfo] = useState<BusinessInfo>(blankInfo);
+  const [greeting, setGreeting] = useState("Hi! 👋 How can I help you today?");
+  const [promptOverride, setPromptOverride] = useState("");
+  const [loading, setLoading] = useState(!isNew);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (isNew) return;
+    (async () => {
+      const { data: c } = await supabase.from("clients").select("*").eq("id", id).maybeSingle<Client>();
+      const { data: cfg } = await supabase.from("chat_configs").select("*").eq("client_id", id).maybeSingle<ChatConfig>();
+      if (c) {
+        setClient({
+          name: c.name, business_type: c.business_type ?? "", city: c.city ?? "", state: c.state ?? "",
+          phone: c.phone ?? "", email: c.email ?? "", website_url: c.website_url ?? "",
+          google_review_url: c.google_review_url ?? "", accent_color: c.accent_color,
+          booking_mode: c.booking_mode, calcom_event_type_id: c.calcom_event_type_id ?? "",
+          calcom_timezone: c.calcom_timezone,
+        });
+      }
+      if (cfg) {
+        setGreeting(cfg.greeting_message);
+        setInfo({ ...blankInfo, ...(cfg.business_info ?? {}) });
+        setPromptOverride(cfg.system_prompt ?? "");
+      }
+      setLoading(false);
+    })();
+  }, [id, isNew]);
+
+  function set<K extends keyof ClientForm>(k: K, v: ClientForm[K]) {
+    setClient((p) => ({ ...p, [k]: v }));
+  }
+  function setI<K extends keyof BusinessInfo>(k: K, v: string) {
+    setInfo((p) => ({ ...p, [k]: v }));
+  }
+
+  async function save() {
+    if (!client.name.trim()) {
+      setError("Business name is required.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+
+    const payload = { ...client, calcom_event_type_id: client.calcom_event_type_id || null };
+
+    let clientId = id;
+    if (isNew) {
+      const { data, error } = await supabase.from("clients").insert(payload).select("id").single<{ id: string }>();
+      if (error || !data) {
+        setError(error?.message ?? "Could not create client");
+        setSaving(false);
+        return;
+      }
+      clientId = data.id;
+    } else {
+      const { error } = await supabase.from("clients").update(payload).eq("id", id);
+      if (error) {
+        setError(error.message);
+        setSaving(false);
+        return;
+      }
+    }
+
+    const { error: cfgErr } = await supabase.from("chat_configs").upsert(
+      {
+        client_id: clientId,
+        system_prompt: promptOverride.trim(), // empty → API renders from business_info
+        greeting_message: greeting,
+        business_info: info,
+        is_active: true,
+      },
+      { onConflict: "client_id" },
+    );
+    if (cfgErr) {
+      setError(cfgErr.message);
+      setSaving(false);
+      return;
+    }
+    navigate("/clients");
+  }
+
+  if (loading) return <p className="text-slate-400">Loading…</p>;
+
+  const widgetBase = WIDGET_URL.replace(/\/$/, "");
+  const apiBase = API_URL.replace(/\/$/, "");
+  const embed = `<script\n  src="${widgetBase}/chat.js"\n  data-client-id="${id}"\n  data-api="${apiBase}"\n  data-accent="${client.accent_color}"\n  async\n></script>`;
+
+  return (
+    <div>
+      <PageHeader
+        title={isNew ? "New client" : client.name || "Edit client"}
+        subtitle="Business details, chatbot knowledge, booking, and branding."
+        action={
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => navigate("/clients")}>Cancel</Button>
+            <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+          </div>
+        }
+      />
+
+      {error && <div className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+
+      <div className="space-y-6">
+        <Card>
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">Business details</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Business name"><Input value={client.name} onChange={(e) => set("name", e.target.value)} /></Field>
+            <Field label="Business type"><Input value={client.business_type ?? ""} onChange={(e) => set("business_type", e.target.value)} placeholder="auto detailing shop" /></Field>
+            <Field label="City"><Input value={client.city ?? ""} onChange={(e) => set("city", e.target.value)} /></Field>
+            <Field label="State"><Input value={client.state ?? ""} onChange={(e) => set("state", e.target.value)} /></Field>
+            <Field label="Phone"><Input value={client.phone ?? ""} onChange={(e) => set("phone", e.target.value)} /></Field>
+            <Field label="Email" hint="Where booking/feedback notifications go"><Input value={client.email ?? ""} onChange={(e) => set("email", e.target.value)} /></Field>
+            <Field label="Website"><Input value={client.website_url ?? ""} onChange={(e) => set("website_url", e.target.value)} /></Field>
+            <Field label="Google review URL" hint="Where 4–5★ raters are sent"><Input value={client.google_review_url ?? ""} onChange={(e) => set("google_review_url", e.target.value)} /></Field>
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-400">Chatbot knowledge</h2>
+          <p className="mb-4 text-xs text-slate-400">The bot answers using only what you provide here.</p>
+          <div className="space-y-4">
+            <Field label="Greeting"><Input value={greeting} onChange={(e) => setGreeting(e.target.value)} /></Field>
+            <Field label="About the business"><Textarea rows={2} value={info.business_info} onChange={(e) => setI("business_info", e.target.value)} /></Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Services"><Textarea rows={4} value={info.services_list} onChange={(e) => setI("services_list", e.target.value)} /></Field>
+              <Field label="Hours"><Textarea rows={4} value={info.hours} onChange={(e) => setI("hours", e.target.value)} /></Field>
+              <Field label="Pricing"><Textarea rows={3} value={info.pricing_info} onChange={(e) => setI("pricing_info", e.target.value)} /></Field>
+              <Field label="Policies"><Textarea rows={3} value={info.policies} onChange={(e) => setI("policies", e.target.value)} /></Field>
+            </div>
+            <Field label="FAQs"><Textarea rows={3} value={info.faqs} onChange={(e) => setI("faqs", e.target.value)} /></Field>
+            <details className="rounded-lg border border-slate-200 p-3">
+              <summary className="cursor-pointer text-sm text-slate-500">Advanced: custom system prompt override</summary>
+              <p className="my-2 text-xs text-slate-400">Leave blank to auto-build the prompt from the fields above.</p>
+              <Textarea rows={6} value={promptOverride} onChange={(e) => setPromptOverride(e.target.value)} />
+            </details>
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">Booking & branding</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Booking mode">
+              <select
+                value={client.booking_mode}
+                onChange={(e) => set("booking_mode", e.target.value as ClientForm["booking_mode"])}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
+              >
+                <option value="calcom">Cal.com (live booking)</option>
+                <option value="capture">Capture only (no calendar)</option>
+              </select>
+            </Field>
+            <Field label="Cal.com event type ID" hint="The client's event type on your Cal.com"><Input value={client.calcom_event_type_id ?? ""} onChange={(e) => set("calcom_event_type_id", e.target.value)} /></Field>
+            <Field label="Timezone"><Input value={client.calcom_timezone} onChange={(e) => set("calcom_timezone", e.target.value)} /></Field>
+            <Field label="Accent color">
+              <div className="flex items-center gap-2">
+                <input type="color" value={client.accent_color} onChange={(e) => set("accent_color", e.target.value)} className="h-9 w-12 rounded border border-slate-300" />
+                <Input value={client.accent_color} onChange={(e) => set("accent_color", e.target.value)} />
+              </div>
+            </Field>
+          </div>
+        </Card>
+
+        {!isNew && (
+          <Card>
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">Widget embed</h2>
+            <p className="mb-3 text-xs text-slate-400">Paste this into the client's website.</p>
+            <pre className="overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs text-slate-100">{embed}</pre>
+            <Button variant="secondary" className="mt-3" onClick={() => navigator.clipboard.writeText(embed)}>Copy snippet</Button>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
