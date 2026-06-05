@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { Anthropic } from "@anthropic-ai/sdk";
 import type { ChatMessage, ToolName } from "@pulse/db";
 import { env } from "../env.js";
 import { resolveTools } from "../config/tools.js";
