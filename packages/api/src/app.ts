@@ -8,7 +8,8 @@ import { campaignsRoute } from "./routes/campaigns.js";
 import { cronRoute } from "./routes/cron.js";
 
 // The Hono app, framework-agnostic. The local dev server (index.ts) wraps it with
-// @hono/node-server; the Vercel deploy (api/index.ts) wraps it with hono/vercel.
+// @hono/node-server; on Vercel this default export is detected and served natively
+// (zero-config Hono support), which routes every path to the app.
 export const app = new Hono();
 
 app.use("*", logger());

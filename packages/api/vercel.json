@@ -1,6 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "echo 'No tsc build — Vercel bundles the api/ function with esbuild.'",
-  "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
   "crons": [{ "path": "/api/cron/follow-ups", "schedule": "0 14 * * *" }]
 }
