@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { getSupabase } from "../lib/supabase.js";
 import { listEventTypes } from "../lib/calcom.js";
+import { requireAdmin, requireAdminOrOwner } from "../lib/auth.js";
 
 /**
  * Admin endpoints for connecting a client's OWN Cal.com account.
@@ -9,11 +10,17 @@ import { listEventTypes } from "../lib/calcom.js";
  * NEVER returned to the browser. GET only reports whether a key is present plus
  * the (non-secret) event types it can see.
  *
- * NOTE: unauthenticated for now, matching the rest of the admin API (campaigns).
- * MUST be gated behind Supabase Auth + per-client scoping in Phase 4 before
- * clients can log in — see calendar-architecture-decision.
+ * Gated by JWT middleware below: Cal.com endpoints allow an admin OR the owning
+ * client (self-service); inviting a login is admin-only. The service-role client
+ * bypasses RLS, so this middleware is what protects these endpoints.
  */
 export const clientsRoute = new Hono();
+
+// Cal.com connection: admin, or the business owner managing their own account.
+clientsRoute.use("/:id/calcom", requireAdminOrOwner);
+clientsRoute.use("/:id/calcom/*", requireAdminOrOwner);
+// Inviting a client login is admin-only.
+clientsRoute.use("/:id/invite", requireAdmin);
 
 /** POST /api/clients/:id/calcom/connect  { apiKey }
  *  Validates the key by listing event types, stores it, switches the client to

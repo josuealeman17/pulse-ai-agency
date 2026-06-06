@@ -1,4 +1,12 @@
-import { API_URL } from "./supabase.js";
+import { API_URL, supabase } from "./supabase.js";
+
+/** Build request headers including the caller's Supabase access token, so the
+ *  API can verify identity + role. Admin API endpoints require this. */
+async function authHeaders(extra: Record<string, string> = {}): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return { ...extra, ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
 
 export interface SendReport {
   added: number;
@@ -12,7 +20,7 @@ export interface SendReport {
 export async function uploadRecipients(campaignId: string, csv: string): Promise<SendReport> {
   const res = await fetch(`${API_URL}/api/campaigns/${campaignId}/recipients`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: await authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ csv }),
   });
   const json = await res.json();
@@ -38,7 +46,7 @@ export interface CalcomStatus {
 
 /** Connection status for a client's Cal.com account. The API key is never returned. */
 export async function getCalcomStatus(clientId: string): Promise<CalcomStatus> {
-  const res = await fetch(`${API_URL}/api/clients/${clientId}/calcom`);
+  const res = await fetch(`${API_URL}/api/clients/${clientId}/calcom`, { headers: await authHeaders() });
   const json = await res.json();
   if (!res.ok) {
     return { connected: false, bookingMode: "capture", eventTypeId: null, eventTypes: [], error: json.error };
@@ -53,7 +61,7 @@ export async function connectCalcom(
 ): Promise<{ ok?: boolean; eventTypes?: CalcomEventType[]; selectedEventTypeId?: string | null; error?: string }> {
   const res = await fetch(`${API_URL}/api/clients/${clientId}/calcom/connect`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: await authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ apiKey }),
   });
   return res.json();
@@ -63,14 +71,17 @@ export async function connectCalcom(
 export async function setCalcomEventType(clientId: string, eventTypeId: string): Promise<{ ok?: boolean; error?: string }> {
   const res = await fetch(`${API_URL}/api/clients/${clientId}/calcom/event-type`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: await authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ eventTypeId }),
   });
   return res.json();
 }
 
 export async function disconnectCalcom(clientId: string): Promise<{ ok?: boolean; error?: string }> {
-  const res = await fetch(`${API_URL}/api/clients/${clientId}/calcom/disconnect`, { method: "POST" });
+  const res = await fetch(`${API_URL}/api/clients/${clientId}/calcom/disconnect`, {
+    method: "POST",
+    headers: await authHeaders(),
+  });
   return res.json();
 }
 
@@ -81,7 +92,7 @@ export async function inviteClientLogin(
 ): Promise<{ ok?: boolean; email?: string; existing?: boolean; error?: string }> {
   const res = await fetch(`${API_URL}/api/clients/${clientId}/invite`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: await authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ email }),
   });
   return res.json();

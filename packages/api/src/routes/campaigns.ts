@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Client } from "@pulse/db";
 import { getSupabase } from "../lib/supabase.js";
 import { baseUrl } from "../lib/baseUrl.js";
+import { requireAdmin } from "../lib/auth.js";
 import {
   addRecipientsAndSend,
   createCampaign,
@@ -11,10 +12,14 @@ import {
 } from "../lib/reviewCampaigns.js";
 
 /**
- * Admin endpoints for review campaigns. NOTE: these are unauthenticated for now —
- * Phase 4 (dashboard + Supabase Auth) will gate them. Do not expose publicly until then.
+ * Admin endpoints for review campaigns. Gated by requireAdmin (Supabase JWT +
+ * admin_users.role='admin') below — the service-role client bypasses RLS, so
+ * this middleware is what actually protects these endpoints.
  */
 export const campaignsRoute = new Hono();
+
+// All campaign management is admin-only (clients don't manage campaigns).
+campaignsRoute.use("*", requireAdmin);
 
 async function loadClient(clientId: string): Promise<Client | null> {
   const supabase = getSupabase();
