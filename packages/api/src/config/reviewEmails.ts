@@ -1,6 +1,26 @@
 import type { Client, CampaignType } from "@pulse/db";
-import { CAMPAIGN_PRESETS } from "@pulse/db";
 import { escapeHtml } from "../lib/email.js";
+
+/**
+ * Default message bodies per campaign type, used as the render-time fallback
+ * when a campaign's body is blank. Kept local (not imported from @pulse/db's
+ * CAMPAIGN_PRESETS) on purpose: the API runs as compiled JS on Vercel and
+ * @pulse/db ships TypeScript source, so a *runtime* import of it crashes the
+ * function at load. The dashboard (bundled by Vite) is the source of truth for
+ * the full presets when seeding new campaigns; these mirror the body text.
+ */
+const DEFAULT_BODIES: Record<CampaignType, [string, string, string]> = {
+  google_review: [
+    "Hi {{first_name}},\n\nThanks for choosing {{business_name}}! We'd love to hear how it went.\n\nIt takes just one tap — how was your experience?",
+    "Hi {{first_name}},\n\nJust a quick reminder — we'd really value your feedback on your recent visit to {{business_name}}.\n\nOne tap is all it takes:",
+    "Hi {{first_name}},\n\nLast chance to share your experience with {{business_name}}! Your feedback helps our small business and your community more than you know.\n\nHow did we do?",
+  ],
+  reactivation: [
+    "Hi {{first_name}},\n\nIt's been a while since your last visit to {{business_name}}, and we'd genuinely love to welcome you back.\n\nWhile we're reaching out — we'd really appreciate hearing how your past experience was. Just one tap below:",
+    "Hi {{first_name}},\n\nWe don't want you to miss out — it would be great to see you again at {{business_name}}.\n\nAnd if you have a moment, tap below to tell us how we did last time:",
+    "Hi {{first_name}},\n\nOne last note from {{business_name}} — we'd love to have you back, and to hear your thoughts on your past visit.\n\nHow did we do?",
+  ],
+};
 
 /**
  * Review-request email templates (PRD §5.4). Plain inline-styled HTML so they
@@ -91,7 +111,7 @@ function layout(params: ReviewEmailParams, inner: string): string {
 
 export function renderReviewEmail(step: ReviewEmailStep, params: ReviewEmailParams): string {
   const type = params.campaignType ?? "google_review";
-  const fallback = CAMPAIGN_PRESETS[type].bodies[STEP_INDEX[step]];
+  const fallback = DEFAULT_BODIES[type][STEP_INDEX[step]];
   const template = params.bodyTemplate?.trim() ? params.bodyTemplate : fallback;
 
   let inner = renderBody(template, params.customerFirstName, params.client.name);
