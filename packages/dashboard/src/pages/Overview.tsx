@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase.js";
+import { useAuth } from "../lib/auth.js";
 import { PageHeader, Stat } from "../components/ui.js";
 
 interface Totals {
@@ -18,6 +19,8 @@ async function count(table: string, filter?: (q: any) => any): Promise<number> {
 }
 
 export function Overview() {
+  const { role } = useAuth();
+  const isClient = role === "client";
   const [t, setT] = useState<Totals | null>(null);
 
   useEffect(() => {
@@ -37,12 +40,12 @@ export function Overview() {
 
   return (
     <div>
-      <PageHeader title="Overview" subtitle="Performance across all your clients." />
+      <PageHeader title="Overview" subtitle={isClient ? "Your performance at a glance." : "Performance across all your clients."} />
       {!t ? (
         <p className="text-slate-400">Loading…</p>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          <Stat label="Clients" value={t.clients} />
+          {!isClient && <Stat label="Clients" value={t.clients} />}
           <Stat label="Chats" value={t.chats} />
           <Stat label="Appointments" value={t.appointments} />
           <Stat label="Reviews" value={t.reviews} />

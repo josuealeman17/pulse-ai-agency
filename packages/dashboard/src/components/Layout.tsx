@@ -2,15 +2,22 @@ import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../lib/auth.js";
 
-const nav = [
+const adminNav = [
   { to: "/", label: "Overview", end: true },
   { to: "/clients", label: "Clients", end: false },
   { to: "/campaigns", label: "Review Campaigns", end: false },
   { to: "/conversations", label: "Conversations", end: false },
 ];
 
+const clientNav = [
+  { to: "/", label: "Overview", end: true },
+  { to: "/conversations", label: "Conversations", end: false },
+  { to: "/settings", label: "My Settings", end: false },
+];
+
 export function Layout({ children }: { children: ReactNode }) {
-  const { session, signOut } = useAuth();
+  const { session, signOut, role } = useAuth();
+  const nav = role === "client" ? clientNav : adminNav;
 
   return (
     <div className="flex h-full">

@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import type { ChatMessage, ChatSession, Client } from "@pulse/db";
 import { supabase } from "../lib/supabase.js";
+import { useAuth } from "../lib/auth.js";
 import { Card, PageHeader } from "../components/ui.js";
 
 export function Conversations() {
+  const { role } = useAuth();
+  const isClient = role === "client";
   const [clients, setClients] = useState<Client[]>([]);
   const [clientId, setClientId] = useState("");
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -33,18 +36,20 @@ export function Conversations() {
     <div>
       <PageHeader title="Conversations" subtitle="Every chat your bots have handled." />
 
-      <div className="mb-6 flex items-center gap-3">
-        <span className="text-sm text-slate-500">Client:</span>
-        <select
-          value={clientId}
-          onChange={(e) => setClientId(e.target.value)}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
-        >
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-      </div>
+      {!isClient && (
+        <div className="mb-6 flex items-center gap-3">
+          <span className="text-sm text-slate-500">Client:</span>
+          <select
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
+          >
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {sessions.length === 0 ? (
         <p className="text-slate-400">No conversations yet for this client.</p>

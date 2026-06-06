@@ -73,3 +73,16 @@ export async function disconnectCalcom(clientId: string): Promise<{ ok?: boolean
   const res = await fetch(`${API_URL}/api/clients/${clientId}/calcom/disconnect`, { method: "POST" });
   return res.json();
 }
+
+/** Invite (or link) a business owner's login for this client. */
+export async function inviteClientLogin(
+  clientId: string,
+  email: string,
+): Promise<{ ok?: boolean; email?: string; existing?: boolean; error?: string }> {
+  const res = await fetch(`${API_URL}/api/clients/${clientId}/invite`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  return res.json();
+}

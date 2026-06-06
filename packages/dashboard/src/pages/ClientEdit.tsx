@@ -4,6 +4,7 @@ import type { BusinessInfo, ChatConfig, Client } from "@pulse/db";
 import { supabase, API_URL, WIDGET_URL } from "../lib/supabase.js";
 import { Button, Card, Field, Input, PageHeader, Textarea } from "../components/ui.js";
 import { CalcomConnection } from "../components/CalcomConnection.js";
+import { ClientLoginInvite } from "../components/ClientLoginInvite.js";
 
 type ClientForm = Pick<
   Client,
@@ -20,9 +21,12 @@ const blankInfo: BusinessInfo = {
   business_info: "", services_list: "", hours: "", pricing_info: "", policies: "", faqs: "",
 };
 
-export function ClientEdit() {
-  const { id } = useParams();
+export function ClientEdit({ forcedId }: { forcedId?: string } = {}) {
+  const params = useParams();
+  const id = forcedId ?? params.id;
   const isNew = !id;
+  // Client self-service mode: a business owner editing their own record (vs an admin).
+  const clientMode = Boolean(forcedId);
   const navigate = useNavigate();
 
   const [client, setClient] = useState<ClientForm>(blankClient);
@@ -105,7 +109,7 @@ export function ClientEdit() {
       setSaving(false);
       return;
     }
-    navigate("/clients");
+    navigate(clientMode ? "/" : "/clients");
   }
 
   if (loading) return <p className="text-slate-400">Loading…</p>;
@@ -121,7 +125,7 @@ export function ClientEdit() {
         subtitle="Business details, chatbot knowledge, booking, and branding."
         action={
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => navigate("/clients")}>Cancel</Button>
+            <Button variant="secondary" onClick={() => navigate(clientMode ? "/" : "/clients")}>Cancel</Button>
             <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
           </div>
         }
@@ -195,6 +199,17 @@ export function ClientEdit() {
             <p className="mb-3 text-xs text-slate-400">Paste this into the client's website.</p>
             <pre className="overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs text-slate-100">{embed}</pre>
             <Button variant="secondary" className="mt-3" onClick={() => navigator.clipboard.writeText(embed)}>Copy snippet</Button>
+          </Card>
+        )}
+
+        {!isNew && !clientMode && id && (
+          <Card>
+            <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-400">Client login</h2>
+            <p className="mb-4 text-xs text-slate-400">
+              Invite the business owner to a scoped dashboard where they can view their reports, connect Cal.com, and
+              edit their chatbot knowledge — and nothing else.
+            </p>
+            <ClientLoginInvite clientId={id} />
           </Card>
         )}
       </div>

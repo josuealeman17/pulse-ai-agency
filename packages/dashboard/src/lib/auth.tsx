@@ -2,9 +2,15 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase.js";
 
+export type Role = "admin" | "client";
+
 interface AuthState {
   session: Session | null;
   loading: boolean;
+  /** Resolved from admin_users. null = logged in but not provisioned. */
+  role: Role | null;
+  /** The client this user is scoped to (client role only); null for admins. */
+  clientId: string | null;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 }
@@ -13,14 +19,35 @@ const AuthContext = createContext<AuthState | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
+  const [role, setRole] = useState<Role | null>(null);
+  const [clientId, setClientId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Resolve the user's role + scope from admin_users (RLS lets a user read their own row).
+  async function applySession(s: Session | null) {
+    setSession(s);
+    if (!s) {
+      setRole(null);
+      setClientId(null);
+      return;
+    }
+    const { data } = await supabase
+      .from("admin_users")
+      .select("role, client_id")
+      .eq("id", s.user.id)
+      .maybeSingle<{ role: Role; client_id: string | null }>();
+    setRole(data?.role ?? null);
+    setClientId(data?.client_id ?? null);
+  }
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    supabase.auth.getSession().then(async ({ data }) => {
+      await applySession(data.session);
       setLoading(false);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      void applySession(s);
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -34,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ session, loading, role, clientId, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

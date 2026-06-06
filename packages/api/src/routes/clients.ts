@@ -97,6 +97,48 @@ clientsRoute.get("/:id/calcom", async (c) => {
   });
 });
 
+/** POST /api/clients/:id/invite  { email }
+ *  Create (or find) a Supabase auth user and link it to this client as a
+ *  role='client' user, so the business owner can log into a scoped dashboard.
+ *  Sends a Supabase invite email so they set their own password. Admin-only in
+ *  practice — see the auth-gating note above. */
+clientsRoute.post("/:id/invite", async (c) => {
+  const id = c.req.param("id");
+  const { email } = await c.req.json<{ email?: string }>();
+  const addr = email?.trim().toLowerCase();
+  if (!addr) return c.json({ error: "email is required" }, 400);
+
+  const supabase = getSupabase();
+  if (!supabase) return c.json({ error: "Database not configured" }, 503);
+
+  const { data: client } = await supabase.from("clients").select("id").eq("id", id).maybeSingle();
+  if (!client) return c.json({ error: "Client not found" }, 404);
+
+  // Invite a new user, or find the existing one if already registered.
+  let userId: string | undefined;
+  let existing = false;
+  const { data: invited, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(addr);
+  if (inviteErr) {
+    if (/already|registered|exists/i.test(inviteErr.message)) {
+      existing = true;
+      const { data: list } = await supabase.auth.admin.listUsers();
+      userId = list?.users.find((u) => u.email?.toLowerCase() === addr)?.id;
+    } else {
+      return c.json({ error: inviteErr.message }, 400);
+    }
+  } else {
+    userId = invited?.user?.id;
+  }
+  if (!userId) return c.json({ error: "Could not resolve the invited user" }, 500);
+
+  const { error: roleErr } = await supabase
+    .from("admin_users")
+    .upsert({ id: userId, role: "client", client_id: id }, { onConflict: "id" });
+  if (roleErr) return c.json({ error: roleErr.message }, 500);
+
+  return c.json({ ok: true, email: addr, existing });
+});
+
 /** POST /api/clients/:id/calcom/disconnect — clear the connection, revert to 'capture'. */
 clientsRoute.post("/:id/calcom/disconnect", async (c) => {
   const id = c.req.param("id");
