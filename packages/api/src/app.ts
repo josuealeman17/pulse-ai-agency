@@ -5,6 +5,7 @@ import { env, supabaseEnabled } from "./env.js";
 import { chatRoute } from "./routes/chat.js";
 import { reviewsRoute } from "./routes/reviews.js";
 import { campaignsRoute } from "./routes/campaigns.js";
+import { clientsRoute } from "./routes/clients.js";
 import { cronRoute } from "./routes/cron.js";
 
 // The Hono app, framework-agnostic. The local dev server (index.ts) wraps it with
@@ -37,6 +38,7 @@ app.get("/health", (c) => c.json({ status: "ok" }));
 
 app.route("/chat", chatRoute);
 app.route("/api/campaigns", campaignsRoute);
+app.route("/api/clients", clientsRoute);
 app.route("/api/cron", cronRoute);
 // Public review flow (defines full paths: /api/rate, /feedback/:token, /api/unsubscribe).
 app.route("/", reviewsRoute);

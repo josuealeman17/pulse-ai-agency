@@ -3,17 +3,18 @@ import { useNavigate, useParams } from "react-router-dom";
 import type { BusinessInfo, ChatConfig, Client } from "@pulse/db";
 import { supabase, API_URL, WIDGET_URL } from "../lib/supabase.js";
 import { Button, Card, Field, Input, PageHeader, Textarea } from "../components/ui.js";
+import { CalcomConnection } from "../components/CalcomConnection.js";
 
 type ClientForm = Pick<
   Client,
   | "name" | "business_type" | "city" | "state" | "phone" | "email" | "website_url"
-  | "google_review_url" | "accent_color" | "booking_mode" | "calcom_event_type_id" | "calcom_timezone"
+  | "google_review_url" | "accent_color" | "calcom_timezone"
 >;
 
 const blankClient: ClientForm = {
   name: "", business_type: "", city: "", state: "", phone: "", email: "",
   website_url: "", google_review_url: "", accent_color: "#2563EB",
-  booking_mode: "calcom", calcom_event_type_id: "", calcom_timezone: "America/Denver",
+  calcom_timezone: "America/Denver",
 };
 const blankInfo: BusinessInfo = {
   business_info: "", services_list: "", hours: "", pricing_info: "", policies: "", faqs: "",
@@ -42,7 +43,6 @@ export function ClientEdit() {
           name: c.name, business_type: c.business_type ?? "", city: c.city ?? "", state: c.state ?? "",
           phone: c.phone ?? "", email: c.email ?? "", website_url: c.website_url ?? "",
           google_review_url: c.google_review_url ?? "", accent_color: c.accent_color,
-          booking_mode: c.booking_mode, calcom_event_type_id: c.calcom_event_type_id ?? "",
           calcom_timezone: c.calcom_timezone,
         });
       }
@@ -70,7 +70,7 @@ export function ClientEdit() {
     setSaving(true);
     setError("");
 
-    const payload = { ...client, calcom_event_type_id: client.calcom_event_type_id || null };
+    const payload = { ...client };
 
     let clientId = id;
     if (isNew) {
@@ -166,20 +166,9 @@ export function ClientEdit() {
         </Card>
 
         <Card>
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">Booking & branding</h2>
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-400">Branding & timezone</h2>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Booking mode">
-              <select
-                value={client.booking_mode}
-                onChange={(e) => set("booking_mode", e.target.value as ClientForm["booking_mode"])}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-900"
-              >
-                <option value="calcom">Cal.com (live booking)</option>
-                <option value="capture">Capture only (no calendar)</option>
-              </select>
-            </Field>
-            <Field label="Cal.com event type ID" hint="The client's event type on your Cal.com"><Input value={client.calcom_event_type_id ?? ""} onChange={(e) => set("calcom_event_type_id", e.target.value)} /></Field>
-            <Field label="Timezone"><Input value={client.calcom_timezone} onChange={(e) => set("calcom_timezone", e.target.value)} /></Field>
+            <Field label="Timezone" hint="Used for Cal.com availability & booking times"><Input value={client.calcom_timezone} onChange={(e) => set("calcom_timezone", e.target.value)} /></Field>
             <Field label="Accent color">
               <div className="flex items-center gap-2">
                 <input type="color" value={client.accent_color} onChange={(e) => set("accent_color", e.target.value)} className="h-9 w-12 rounded border border-slate-300" />
@@ -188,6 +177,17 @@ export function ClientEdit() {
             </Field>
           </div>
         </Card>
+
+        {!isNew && id && (
+          <Card>
+            <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-400">Cal.com booking</h2>
+            <p className="mb-4 text-xs text-slate-400">
+              Connect this client's own Cal.com account. The bot books into the event type you pick here — use the
+              same one they embed on their website, so Cal.com handles availability and conflicts across both.
+            </p>
+            <CalcomConnection clientId={id} />
+          </Card>
+        )}
 
         {!isNew && (
           <Card>

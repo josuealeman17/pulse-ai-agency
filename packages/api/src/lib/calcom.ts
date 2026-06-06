@@ -41,6 +41,49 @@ function headers(apiKey: string, version: string): Record<string, string> {
   };
 }
 
+export interface EventTypeSummary {
+  id: string;
+  title: string;
+  slug: string;
+  lengthInMinutes: number | null;
+}
+
+export interface EventTypesResult {
+  ok: boolean;
+  eventTypes: EventTypeSummary[];
+  error?: string;
+}
+
+/**
+ * List the event types owned by a Cal.com API key. Used by the "connect your
+ * Cal.com account" flow: we call this to (a) validate the key and (b) let the
+ * client pick which event type the chatbot books into — the same one they embed
+ * on their site, so Cal.com handles availability/conflicts across both channels.
+ */
+export async function listEventTypes(apiKey: string): Promise<EventTypesResult> {
+  try {
+    const res = await fetch(`${env.calcomBaseUrl}/event-types`, {
+      headers: headers(apiKey, env.calcomEventTypesVersion),
+    });
+    const json = (await res.json()) as {
+      data?: Array<{ id: number | string; title?: string; slug?: string; lengthInMinutes?: number }>;
+      error?: { message?: string };
+    };
+    if (!res.ok) {
+      return { ok: false, eventTypes: [], error: json.error?.message ?? `calcom_event_types_${res.status}` };
+    }
+    const eventTypes = (json.data ?? []).map((e) => ({
+      id: String(e.id),
+      title: e.title ?? "(untitled)",
+      slug: e.slug ?? "",
+      lengthInMinutes: e.lengthInMinutes ?? null,
+    }));
+    return { ok: true, eventTypes };
+  } catch (err) {
+    return { ok: false, eventTypes: [], error: err instanceof Error ? err.message : "calcom_error" };
+  }
+}
+
 /** Evenly sample `n` items spanning the full array (preserves first & last). */
 function pickSpread<T>(arr: T[], n: number): T[] {
   if (arr.length <= n) return arr;

@@ -39,6 +39,7 @@ export const env = {
   // Cal.com API v2 versions its endpoints via this header.
   calcomSlotsVersion: optional("CALCOM_SLOTS_VERSION", "2024-09-04"),
   calcomBookingsVersion: optional("CALCOM_BOOKINGS_VERSION", "2024-08-13"),
+  calcomEventTypesVersion: optional("CALCOM_EVENT_TYPES_VERSION", "2024-06-14"),
 
   // Resend (transactional email) — used for transfer notifications now, reviews in Phase 3.
   resendApiKey: optional("RESEND_API_KEY"),
