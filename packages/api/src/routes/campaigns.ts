@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Client } from "@pulse/db";
 import { getSupabase } from "../lib/supabase.js";
+import { baseUrl } from "../lib/baseUrl.js";
 import {
   addRecipientsAndSend,
   createCampaign,
@@ -97,6 +98,6 @@ campaignsRoute.post("/:id/recipients", async (c) => {
     return c.json({ error: "No valid recipients found", skipped }, 400);
   }
 
-  const report = await addRecipientsAndSend(campaign, client, recipients);
+  const report = await addRecipientsAndSend(campaign, client, recipients, baseUrl(c));
   return c.json({ ...report, skipped: report.skipped + skipped });
 });

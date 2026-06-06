@@ -8,7 +8,7 @@ import {
   thanksPage,
   unsubscribedPage,
 } from "../config/reviewPages.js";
-import { env } from "../env.js";
+import { baseUrl } from "../lib/baseUrl.js";
 
 export const reviewsRoute = new Hono();
 
@@ -48,7 +48,7 @@ reviewsRoute.get("/api/rate", async (c) => {
     return html(thanksPage(client, true));
   }
   // Low rating → private feedback, keep it off the public web.
-  return c.redirect(`${env.publicApiUrl}/feedback/${encodeURIComponent(token)}`, 302);
+  return c.redirect(`${baseUrl(c)}/feedback/${encodeURIComponent(token)}`, 302);
 });
 
 /** GET /feedback/:token — private feedback form for low ratings. */
@@ -56,7 +56,7 @@ reviewsRoute.get("/feedback/:token", async (c) => {
   const token = c.req.param("token");
   const resolved = await getByToken(token);
   if (!resolved) return html(errorPage("We couldn't find that feedback link."), 404);
-  return html(feedbackFormPage(resolved.client, token, env.publicApiUrl));
+  return html(feedbackFormPage(resolved.client, token, baseUrl(c)));
 });
 
 /** POST /feedback/:token — save private feedback + email it to the client. */
@@ -68,7 +68,7 @@ reviewsRoute.post("/feedback/:token", async (c) => {
 
   const body = await c.req.parseBody();
   const feedback = String(body.feedback ?? "").trim();
-  if (!feedback) return html(feedbackFormPage(client, token, env.publicApiUrl), 400);
+  if (!feedback) return html(feedbackFormPage(client, token, baseUrl(c)), 400);
 
   await recordFeedback(request.id, feedback);
 

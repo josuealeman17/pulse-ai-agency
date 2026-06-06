@@ -1,5 +1,6 @@
 import { Hono, type Context } from "hono";
 import { env } from "../env.js";
+import { baseUrl } from "../lib/baseUrl.js";
 import { runFollowUps } from "../lib/followUps.js";
 
 /**
@@ -19,7 +20,7 @@ function authorized(c: Context): boolean {
 
 async function handle(c: Context) {
   if (!authorized(c)) return c.json({ error: "unauthorized" }, 401);
-  const report = await runFollowUps();
+  const report = await runFollowUps(baseUrl(c));
   return c.json({ ok: true, ...report });
 }
 

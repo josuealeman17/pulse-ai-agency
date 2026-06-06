@@ -2,7 +2,6 @@ import type { Client, ReviewCampaign, ReviewRequest } from "@pulse/db";
 import { getSupabase } from "./supabase.js";
 import { fromWithName, sendEmail } from "./email.js";
 import { renderReviewEmail, renderSubject, type ReviewEmailStep } from "../config/reviewEmails.js";
-import { env } from "../env.js";
 
 const HOURS_48 = 48 * 3600 * 1000;
 const DAYS_5 = 5 * 24 * 3600 * 1000;
@@ -24,7 +23,7 @@ type JoinedRequest = ReviewRequest & {
  * Requests that were clicked have status 'clicked' (excluded), and unsubscribed
  * ones are skipped explicitly.
  */
-export async function runFollowUps(): Promise<FollowUpReport> {
+export async function runFollowUps(apiUrl: string): Promise<FollowUpReport> {
   const supabase = getSupabase();
   const report: FollowUpReport = { reminders_sent: 0, finals_sent: 0, errors: 0 };
   if (!supabase) return report;
@@ -43,7 +42,7 @@ export async function runFollowUps(): Promise<FollowUpReport> {
     .returns<JoinedRequest[]>();
 
   for (const req of reminderDue ?? []) {
-    const ok = await sendFollowUp(req, "reminder", req.review_campaigns.email_subject_2);
+    const ok = await sendFollowUp(req, "reminder", req.review_campaigns.email_subject_2, apiUrl);
     if (ok) {
       await supabase
         .from("review_requests")
@@ -66,7 +65,7 @@ export async function runFollowUps(): Promise<FollowUpReport> {
     .returns<JoinedRequest[]>();
 
   for (const req of finalDue ?? []) {
-    const ok = await sendFollowUp(req, "final", req.review_campaigns.email_subject_3);
+    const ok = await sendFollowUp(req, "final", req.review_campaigns.email_subject_3, apiUrl);
     if (ok) {
       await supabase
         .from("review_requests")
@@ -85,6 +84,7 @@ async function sendFollowUp(
   req: JoinedRequest,
   step: ReviewEmailStep,
   subjectTemplate: string,
+  apiUrl: string,
 ): Promise<boolean> {
   const client = req.clients;
   const firstName = (req.customer_name || "").split(/\s+/)[0] ?? "";
@@ -97,7 +97,7 @@ async function sendFollowUp(
       client,
       customerFirstName: firstName,
       token: req.token,
-      apiUrl: env.publicApiUrl,
+      apiUrl,
     }),
   });
   return res.ok || Boolean(res.skipped); // count "skipped" (resend disabled) as handled, not an error

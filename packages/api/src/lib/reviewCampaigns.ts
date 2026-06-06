@@ -3,7 +3,6 @@ import { getSupabase } from "./supabase.js";
 import { generateToken } from "./reviewRequests.js";
 import { fromWithName, sendEmail } from "./email.js";
 import { renderReviewEmail, renderSubject } from "../config/reviewEmails.js";
-import { env } from "../env.js";
 
 export interface Recipient {
   name: string;
@@ -97,6 +96,7 @@ export async function addRecipientsAndSend(
   campaign: ReviewCampaign,
   client: Client,
   recipients: Recipient[],
+  apiUrl: string,
 ): Promise<SendReport> {
   const supabase = getSupabase();
   if (!supabase) return { added: 0, sent: 0, failed: 0, skipped: recipients.length };
@@ -141,7 +141,7 @@ export async function addRecipientsAndSend(
         client,
         customerFirstName: firstName,
         token,
-        apiUrl: env.publicApiUrl,
+        apiUrl,
       }),
     });
 
