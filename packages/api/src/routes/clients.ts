@@ -129,7 +129,8 @@ clientsRoute.post("/:id/invite", async (c) => {
     if (/already|registered|exists/i.test(inviteErr.message)) {
       existing = true;
       const { data: list } = await supabase.auth.admin.listUsers();
-      userId = list?.users.find((u) => u.email?.toLowerCase() === addr)?.id;
+      const users = (list?.users ?? []) as Array<{ id: string; email?: string | null }>;
+      userId = users.find((u) => u.email?.toLowerCase() === addr)?.id;
     } else {
       return c.json({ error: inviteErr.message }, 400);
     }
