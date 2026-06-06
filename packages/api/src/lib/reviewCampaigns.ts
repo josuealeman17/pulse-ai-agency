@@ -142,6 +142,9 @@ export async function addRecipientsAndSend(
         customerFirstName: firstName,
         token,
         apiUrl,
+        campaignType: campaign.campaign_type,
+        bodyTemplate: campaign.email_body_1,
+        incentive: campaign.incentive,
       }),
     });
 

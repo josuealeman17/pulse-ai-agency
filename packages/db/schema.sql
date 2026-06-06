@@ -65,10 +65,17 @@ CREATE TABLE IF NOT EXISTS review_campaigns (
   client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   status TEXT DEFAULT 'draft',
+  campaign_type TEXT DEFAULT 'google_review',
   satisfaction_threshold INT DEFAULT 4,
   email_subject_1 TEXT DEFAULT 'How was your experience at {{business_name}}?',
   email_subject_2 TEXT DEFAULT 'Quick reminder — we''d love your feedback!',
   email_subject_3 TEXT DEFAULT 'Last chance to share your experience',
+  email_body_1 TEXT,
+  email_body_2 TEXT,
+  email_body_3 TEXT,
+  incentive TEXT,
+  reminder_1_delay_hours INT DEFAULT 48,
+  reminder_2_delay_hours INT DEFAULT 120,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

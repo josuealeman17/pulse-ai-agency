@@ -1,4 +1,5 @@
-import type { Client } from "@pulse/db";
+import type { Client, CampaignType } from "@pulse/db";
+import { CAMPAIGN_PRESETS } from "@pulse/db";
 import { escapeHtml } from "../lib/email.js";
 
 /**
@@ -13,11 +14,44 @@ export interface ReviewEmailParams {
   customerFirstName: string;
   token: string;
   apiUrl: string;
+  /** Drives the default copy when bodyTemplate is blank. Defaults to google_review. */
+  campaignType?: CampaignType;
+  /** Admin-edited body (template text). When null/empty, falls back to the preset. */
+  bodyTemplate?: string | null;
+  /** Optional offer callout; rendered as a highlighted block when present. */
+  incentive?: string | null;
 }
 
 export type ReviewEmailStep = "initial" | "reminder" | "final";
 
+const STEP_INDEX: Record<ReviewEmailStep, 0 | 1 | 2> = { initial: 0, reminder: 1, final: 2 };
 const STAR_GOLD = "#F5B301";
+
+/**
+ * Render a plain-text body template into email HTML: fill {{first_name}} /
+ * {{business_name}}, escape user content, then turn blank-line gaps into
+ * paragraphs and single newlines into <br>. The business name is bolded.
+ */
+function renderBody(template: string, firstName: string, biz: string): string {
+  const name = escapeHtml(firstName || "there");
+  return template
+    .trim()
+    .split(/\n\s*\n/)
+    .map((para) => {
+      const html = escapeHtml(para)
+        .replace(/\{\{\s*first_name\s*\}\}/g, name)
+        .replace(/\{\{\s*business_name\s*\}\}/g, `<strong>${escapeHtml(biz)}</strong>`)
+        .replace(/\n/g, "<br>");
+      return `<p style="margin:0 0 14px">${html}</p>`;
+    })
+    .join("");
+}
+
+function incentiveBlock(incentive: string): string {
+  return `<div style="margin:4px 0 4px;padding:14px 16px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;color:#9a3412;font-size:15px;text-align:center">
+    🎁 ${escapeHtml(incentive)}
+  </div>`;
+}
 
 function starRow(apiUrl: string, token: string): string {
   const stars = [1, 2, 3, 4, 5]
@@ -56,22 +90,14 @@ function layout(params: ReviewEmailParams, inner: string): string {
 }
 
 export function renderReviewEmail(step: ReviewEmailStep, params: ReviewEmailParams): string {
-  const name = escapeHtml(params.customerFirstName || "there");
-  const biz = escapeHtml(params.client.name);
+  const type = params.campaignType ?? "google_review";
+  const fallback = CAMPAIGN_PRESETS[type].bodies[STEP_INDEX[step]];
+  const template = params.bodyTemplate?.trim() ? params.bodyTemplate : fallback;
 
-  const bodies: Record<ReviewEmailStep, string> = {
-    initial: `<p>Hi ${name},</p>
-      <p>Thanks for choosing <strong>${biz}</strong>! We'd love to hear how it went.</p>
-      <p>It takes just one tap — how was your experience?</p>`,
-    reminder: `<p>Hi ${name},</p>
-      <p>Just a quick reminder — we'd really value your feedback on your recent visit to <strong>${biz}</strong>.</p>
-      <p>One tap is all it takes:</p>`,
-    final: `<p>Hi ${name},</p>
-      <p>Last chance to share your experience with <strong>${biz}</strong>! Your feedback helps our small business and your community more than you know.</p>
-      <p>How did we do?</p>`,
-  };
+  let inner = renderBody(template, params.customerFirstName, params.client.name);
+  if (params.incentive?.trim()) inner += incentiveBlock(params.incentive.trim());
 
-  return layout(params, bodies[step]);
+  return layout(params, inner);
 }
 
 /** Fill {{business_name}} in a campaign subject line. */

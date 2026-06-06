@@ -73,15 +73,33 @@ export interface ChatSession {
 
 export type CampaignStatus = "draft" | "active" | "paused" | "completed";
 
+/**
+ * Campaign types differ only in copy/context/incentive, not mechanics:
+ *  - google_review: fired right after a job is done (gratitude window, time-sensitive).
+ *  - reactivation: win-back for old customers; usually carries an incentive.
+ */
+export type CampaignType = "google_review" | "reactivation";
+
 export interface ReviewCampaign {
   id: string;
   client_id: string;
   name: string;
   status: CampaignStatus;
+  campaign_type: CampaignType;
   satisfaction_threshold: number;
   email_subject_1: string;
   email_subject_2: string;
   email_subject_3: string;
+  /** Editable message bodies (template text with {{first_name}} / {{business_name}}).
+   *  Null falls back to the type-appropriate default in CAMPAIGN_PRESETS. */
+  email_body_1: string | null;
+  email_body_2: string | null;
+  email_body_3: string | null;
+  /** Optional offer callout, e.g. "Enjoy 5% off your next visit" (reactivation). */
+  incentive: string | null;
+  /** Per-campaign follow-up cadence, in hours after the initial send. */
+  reminder_1_delay_hours: number;
+  reminder_2_delay_hours: number;
   created_at: string;
 }
 
