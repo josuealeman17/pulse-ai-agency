@@ -3,6 +3,7 @@
   "framework": null,
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "build": { "env": { "PUBLIC_API_URL": "https://pulse-api-ten.vercel.app" } },
   "headers": [
     {
       "source": "/chat.js",

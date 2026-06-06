@@ -3,5 +3,6 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "build": { "env": { "PUBLIC_API_URL": "https://pulse-api-ten.vercel.app" } },
   "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
 }
