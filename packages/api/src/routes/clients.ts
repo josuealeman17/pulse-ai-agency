@@ -121,30 +121,50 @@ clientsRoute.post("/:id/invite", async (c) => {
   const { data: client } = await supabase.from("clients").select("id").eq("id", id).maybeSingle();
   if (!client) return c.json({ error: "Client not found" }, 404);
 
-  // Invite a new user, or find the existing one if already registered.
-  let userId: string | undefined;
-  let existing = false;
-  const { data: invited, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(addr);
-  if (inviteErr) {
-    if (/already|registered|exists/i.test(inviteErr.message)) {
-      existing = true;
-      const { data: list } = await supabase.auth.admin.listUsers();
-      const users = (list?.users ?? []) as Array<{ id: string; email?: string | null }>;
-      userId = users.find((u) => u.email?.toLowerCase() === addr)?.id;
-    } else {
-      return c.json({ error: inviteErr.message }, 400);
-    }
-  } else {
-    userId = invited?.user?.id;
+  // Look up any existing auth user FIRST, so we never clobber an admin or another
+  // business's client by blindly upserting a role (that once demoted the only admin).
+  const { data: list } = await supabase.auth.admin.listUsers();
+  const users = (list?.users ?? []) as Array<{ id: string; email?: string | null }>;
+  const existingUser = users.find((u) => u.email?.toLowerCase() === addr);
+
+  async function linkAsClient(userId: string): Promise<Response | null> {
+    const { error: roleErr } = await supabase!
+      .from("admin_users")
+      .upsert({ id: userId, role: "client", client_id: id }, { onConflict: "id" });
+    return roleErr ? c.json({ error: roleErr.message }, 500) : null;
   }
+
+  if (existingUser) {
+    const { data: role } = await supabase
+      .from("admin_users")
+      .select("role, client_id")
+      .eq("id", existingUser.id)
+      .maybeSingle<{ role: string; client_id: string | null }>();
+
+    // Guardrails: don't demote an admin, and don't steal a client from another business.
+    if (role?.role === "admin") {
+      return c.json({ error: "That email is an admin account — refusing to convert it into a client login." }, 409);
+    }
+    if (role?.role === "client" && role.client_id && role.client_id !== id) {
+      return c.json({ error: "That email is already a client login for a different business." }, 409);
+    }
+
+    const fail = await linkAsClient(existingUser.id);
+    if (fail) return fail;
+    // Existing account: no invite email is sent — they keep their current password
+    // (or use "forgot password"). Surfaced via `existing` so the UI can say so.
+    return c.json({ ok: true, email: addr, existing: true });
+  }
+
+  // Brand-new user: send the Supabase invite (lets them set a password) and link as client.
+  const { data: invited, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(addr);
+  if (inviteErr) return c.json({ error: inviteErr.message }, 400);
+  const userId = invited?.user?.id;
   if (!userId) return c.json({ error: "Could not resolve the invited user" }, 500);
 
-  const { error: roleErr } = await supabase
-    .from("admin_users")
-    .upsert({ id: userId, role: "client", client_id: id }, { onConflict: "id" });
-  if (roleErr) return c.json({ error: roleErr.message }, 500);
-
-  return c.json({ ok: true, email: addr, existing });
+  const fail = await linkAsClient(userId);
+  if (fail) return fail;
+  return c.json({ ok: true, email: addr, existing: false });
 });
 
 /** POST /api/clients/:id/calcom/disconnect — clear the connection, revert to 'capture'. */
