@@ -107,7 +107,7 @@ export async function disconnectCalcom(clientId: string): Promise<{ ok?: boolean
 export async function inviteClientLogin(
   clientId: string,
   email: string,
-): Promise<{ ok?: boolean; email?: string; existing?: boolean; error?: string }> {
+): Promise<{ ok?: boolean; email?: string; existing?: boolean; emailSent?: boolean; error?: string }> {
   const res = await fetch(`${API_URL}/api/clients/${clientId}/invite`, {
     method: "POST",
     headers: await authHeaders({ "Content-Type": "application/json" }),

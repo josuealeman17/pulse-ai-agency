@@ -22,7 +22,7 @@ export function ClientLoginInvite({ clientId }: { clientId: string }) {
     setMsg({
       ok: true,
       text: r.existing
-        ? `Linked existing account ${r.email} to this client.`
+        ? `Linked ${r.email} and sent a set-password link to their inbox.`
         : `Invite sent to ${r.email}. They'll set a password via the email link.`,
     });
   }

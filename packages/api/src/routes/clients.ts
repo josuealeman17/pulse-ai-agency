@@ -137,6 +137,10 @@ clientsRoute.post("/:id/invite", async (c) => {
   const supabase = getSupabase();
   if (!supabase) return c.json({ error: "Database not configured" }, 503);
 
+  // Where the invite / set-password link returns to. Must be allowed in Supabase
+  // Auth → URL Configuration → Redirect URLs. Blank → Supabase uses its Site URL.
+  const redirectTo = env.publicDashboardUrl || undefined;
+
   const { data: client } = await supabase.from("clients").select("id").eq("id", id).maybeSingle();
   if (!client) return c.json({ error: "Client not found" }, 404);
 
@@ -170,20 +174,28 @@ clientsRoute.post("/:id/invite", async (c) => {
 
     const fail = await linkAsClient(existingUser.id);
     if (fail) return fail;
-    // Existing account: no invite email is sent — they keep their current password
-    // (or use "forgot password"). Surfaced via `existing` so the UI can say so.
-    return c.json({ ok: true, email: addr, existing: true });
+    // Existing account: can't re-invite a user that already exists, so send a
+    // password-recovery email instead. It lands on the same set-password screen
+    // (type=recovery), giving them a working way in even if they never set one.
+    const { error: resetErr } = await supabase.auth.resetPasswordForEmail(
+      addr,
+      redirectTo ? { redirectTo } : {},
+    );
+    return c.json({ ok: true, email: addr, existing: true, emailSent: !resetErr });
   }
 
   // Brand-new user: send the Supabase invite (lets them set a password) and link as client.
-  const { data: invited, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(addr);
+  const { data: invited, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(
+    addr,
+    redirectTo ? { redirectTo } : undefined,
+  );
   if (inviteErr) return c.json({ error: inviteErr.message }, 400);
   const userId = invited?.user?.id;
   if (!userId) return c.json({ error: "Could not resolve the invited user" }, 500);
 
   const fail = await linkAsClient(userId);
   if (fail) return fail;
-  return c.json({ ok: true, email: addr, existing: false });
+  return c.json({ ok: true, email: addr, existing: false, emailSent: true });
 });
 
 // ─────────────────────────────────────────────────────────────

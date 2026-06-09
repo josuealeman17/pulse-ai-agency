@@ -61,6 +61,10 @@ export const env = {
   // Public URLs
   publicApiUrl: optional("PUBLIC_API_URL", "http://localhost:8787"),
   publicWidgetUrl: optional("PUBLIC_WIDGET_URL", "http://localhost:5173"),
+  // The dashboard origin — used as the redirect target for invite / set-password
+  // emails so the link lands back on the dashboard. Must also be in Supabase Auth
+  // → URL Configuration → Redirect URLs. Falls back to the Supabase Site URL when blank.
+  publicDashboardUrl: optional("PUBLIC_DASHBOARD_URL"),
 } as const;
 
 export const supabaseEnabled = Boolean(env.supabaseUrl && env.supabaseServiceRoleKey);

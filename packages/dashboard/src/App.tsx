@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./lib/auth.js";
+import { authCallbackType } from "./lib/supabase.js";
 import { Layout } from "./components/Layout.js";
 import { Login } from "./pages/Login.js";
+import { SetPassword } from "./pages/SetPassword.js";
 import { Overview } from "./pages/Overview.js";
 import { Clients } from "./pages/Clients.js";
 import { ClientEdit } from "./pages/ClientEdit.js";
@@ -11,6 +14,9 @@ import { Conversations } from "./pages/Conversations.js";
 
 export function App() {
   const { session, loading, role, clientId } = useAuth();
+  // Invite/recovery links land with a session but no password yet — gate on a
+  // set-password screen until they choose one (dismissible only by succeeding).
+  const [needsPassword, setNeedsPassword] = useState(authCallbackType !== null);
 
   if (loading) {
     return <div className="grid h-full place-items-center text-slate-400">Loading…</div>;
@@ -22,6 +28,10 @@ export function App() {
         <Route path="*" element={<Login />} />
       </Routes>
     );
+  }
+
+  if (needsPassword) {
+    return <SetPassword email={session.user.email} onDone={() => setNeedsPassword(false)} />;
   }
 
   // Logged in but not linked to an admin or client record.
