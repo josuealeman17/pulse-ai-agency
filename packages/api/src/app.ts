@@ -7,6 +7,7 @@ import { reviewsRoute } from "./routes/reviews.js";
 import { campaignsRoute } from "./routes/campaigns.js";
 import { clientsRoute } from "./routes/clients.js";
 import { cronRoute } from "./routes/cron.js";
+import { webhooksRoute } from "./routes/webhooks.js";
 
 // The Hono app, framework-agnostic. The local dev server (index.ts) wraps it with
 // @hono/node-server; on Vercel this default export is detected and served natively
@@ -40,6 +41,8 @@ app.route("/chat", chatRoute);
 app.route("/api/campaigns", campaignsRoute);
 app.route("/api/clients", clientsRoute);
 app.route("/api/cron", cronRoute);
+// Public, per-campaign-token-gated trigger (a client's CRM/Sheet fires a request).
+app.route("/api/webhooks", webhooksRoute);
 // Public review flow (defines full paths: /api/rate, /feedback/:token, /api/unsubscribe).
 app.route("/", reviewsRoute);
 

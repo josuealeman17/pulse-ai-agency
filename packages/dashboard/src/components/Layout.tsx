@@ -6,11 +6,13 @@ const adminNav = [
   { to: "/", label: "Overview", end: true },
   { to: "/clients", label: "Clients", end: false },
   { to: "/campaigns", label: "Review Campaigns", end: false },
+  { to: "/reputation", label: "Reputation", end: false },
   { to: "/conversations", label: "Conversations", end: false },
 ];
 
 const clientNav = [
   { to: "/", label: "Overview", end: true },
+  { to: "/reputation", label: "Reputation", end: false },
   { to: "/conversations", label: "Conversations", end: false },
   { to: "/settings", label: "My Settings", end: false },
 ];

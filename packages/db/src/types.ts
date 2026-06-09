@@ -19,6 +19,13 @@ export interface Client {
   calcom_event_type_id: string | null;
   calcom_api_key: string | null;
   calcom_timezone: string;
+  /** Google Business Profile connection. The refresh token is a server-only secret
+   *  (never returned to the browser by the API). account/location are resource paths
+   *  discovered after consent ('accounts/123', 'accounts/123/locations/456'). */
+  google_oauth_refresh_token: string | null;
+  google_account_id: string | null;
+  google_location_id: string | null;
+  google_connected_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -100,6 +107,10 @@ export interface ReviewCampaign {
   /** Per-campaign follow-up cadence, in hours after the initial send. */
   reminder_1_delay_hours: number;
   reminder_2_delay_hours: number;
+  /** Per-campaign bearer token for the unauthenticated trigger webhook (a client's
+   *  CRM / job system / Google Sheet fires a request when a job is done). Null = no
+   *  token minted yet. Never exposed to client-role users (admin dashboard only). */
+  webhook_token: string | null;
   created_at: string;
 }
 
@@ -124,6 +135,24 @@ export interface ReviewRequest {
   rated_ip: string | null;
   unsubscribed_at: string | null;
   created_at: string;
+}
+
+export type ReviewReplyStatus = "pending_approval" | "posted" | "skipped" | "failed";
+
+/** A Google review pulled from a client's Business Profile, plus our AI reply state. */
+export interface GoogleReview {
+  id: string;
+  client_id: string;
+  google_review_id: string;
+  reviewer_name: string | null;
+  star_rating: number;
+  comment: string | null;
+  review_created_at: string | null;
+  reply_text: string | null;
+  reply_status: ReviewReplyStatus;
+  reply_posted_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export type AppointmentStatus = "pending" | "confirmed" | "cancelled";

@@ -4,6 +4,7 @@ import type { BusinessInfo, ChatConfig, Client } from "@pulse/db";
 import { supabase, API_URL, WIDGET_URL } from "../lib/supabase.js";
 import { Button, Card, Field, Input, PageHeader, Textarea } from "../components/ui.js";
 import { CalcomConnection } from "../components/CalcomConnection.js";
+import { GoogleConnection } from "../components/GoogleConnection.js";
 import { ClientLoginInvite } from "../components/ClientLoginInvite.js";
 
 type ClientForm = Pick<
@@ -190,6 +191,17 @@ export function ClientEdit({ forcedId }: { forcedId?: string } = {}) {
               same one they embed on their website, so Cal.com handles availability and conflicts across both.
             </p>
             <CalcomConnection clientId={id} />
+          </Card>
+        )}
+
+        {!isNew && id && (
+          <Card>
+            <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-400">Google Business Profile</h2>
+            <p className="mb-4 text-xs text-slate-400">
+              Connect the client's Google reviews so Pulse can display them on their site and post
+              AI-drafted, SEO-optimized responses. The connection is held securely server-side.
+            </p>
+            <GoogleConnection clientId={id} />
           </Card>
         )}
 

@@ -86,6 +86,17 @@ export interface SendReport {
   sent: number;
   failed: number;
   skipped: number;
+  /** Recipients dropped because the same email was already requested for this
+   *  campaign recently (or appeared twice in the same batch). */
+  deduped: number;
+}
+
+export interface AddRecipientsOptions {
+  /** Skip an email already requested for this campaign within `dedupeWindowDays`.
+   *  Always on for the trigger webhook so a re-fired job-done event can't double-email. */
+  dedupe?: boolean;
+  /** How far back to look for a prior request when deduping. Default 14 days. */
+  dedupeWindowDays?: number;
 }
 
 /**
@@ -97,19 +108,45 @@ export async function addRecipientsAndSend(
   client: Client,
   recipients: Recipient[],
   apiUrl: string,
+  options: AddRecipientsOptions = {},
 ): Promise<SendReport> {
   const supabase = getSupabase();
-  if (!supabase) return { added: 0, sent: 0, failed: 0, skipped: recipients.length };
+  if (!supabase) return { added: 0, sent: 0, failed: 0, skipped: recipients.length, deduped: 0 };
 
-  const report: SendReport = { added: 0, sent: 0, failed: 0, skipped: 0 };
+  const report: SendReport = { added: 0, sent: 0, failed: 0, skipped: 0, deduped: 0 };
   const subject = renderSubject(campaign.email_subject_1, client);
   const from = fromWithName(client.name);
+
+  // Build the set of emails already requested for this campaign in the window, so
+  // a re-fired trigger (or a re-pasted list) doesn't email the same person twice.
+  const dedupe = options.dedupe ?? false;
+  const recentlyRequested = new Set<string>();
+  if (dedupe) {
+    const windowDays = options.dedupeWindowDays ?? 14;
+    const since = new Date(Date.now() - windowDays * 86_400_000).toISOString();
+    const emails = [...new Set(recipients.map((r) => r.email.toLowerCase()))];
+    const { data: existing } = await supabase
+      .from("review_requests")
+      .select("customer_email")
+      .eq("campaign_id", campaign.id)
+      .gte("created_at", since)
+      .in("customer_email", emails);
+    for (const e of existing ?? []) recentlyRequested.add(e.customer_email.toLowerCase());
+  }
+  // Always guard against the same email appearing twice within one batch.
+  const batchSeen = new Set<string>();
 
   for (const r of recipients) {
     if (!EMAIL_RE.test(r.email)) {
       report.skipped++;
       continue;
     }
+    const emailLc = r.email.toLowerCase();
+    if (batchSeen.has(emailLc) || recentlyRequested.has(emailLc)) {
+      report.deduped++;
+      continue;
+    }
+    batchSeen.add(emailLc);
     const token = generateToken();
 
     const { data: row, error } = await supabase

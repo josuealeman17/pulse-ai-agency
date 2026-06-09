@@ -45,6 +45,13 @@ export const env = {
   resendApiKey: optional("RESEND_API_KEY"),
   resendFrom: optional("RESEND_FROM", "Pulse <onboarding@resend.dev>"),
 
+  // Google Business Profile OAuth (review display + AI responses + report data).
+  // Gated on Google's GBP API access approval; the OAuth handshake itself works
+  // as soon as these are set. redirectUri falls back to the live host when blank.
+  googleClientId: optional("GOOGLE_CLIENT_ID"),
+  googleClientSecret: optional("GOOGLE_CLIENT_SECRET"),
+  googleRedirectUri: optional("GOOGLE_OAUTH_REDIRECT_URI"),
+
   // Server
   port: Number(optional("PORT", "8787")),
   allowedOrigins: optional("ALLOWED_ORIGINS", "*"),
@@ -60,3 +67,5 @@ export const supabaseEnabled = Boolean(env.supabaseUrl && env.supabaseServiceRol
 /** Cal.com is live only when both an API key and a default event type are configured. */
 export const calcomEnabled = Boolean(env.calcomApiKey && env.calcomEventTypeId);
 export const resendEnabled = Boolean(env.resendApiKey);
+/** Google OAuth is available once a client ID + secret are configured. */
+export const googleEnabled = Boolean(env.googleClientId && env.googleClientSecret);

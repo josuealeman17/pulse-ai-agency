@@ -62,6 +62,10 @@ const DEMO_CLIENT: Client = {
   calcom_event_type_id: env.calcomEventTypeId || null,
   calcom_api_key: null,
   calcom_timezone: env.calcomTimezone,
+  google_oauth_refresh_token: null,
+  google_account_id: null,
+  google_location_id: null,
+  google_connected_at: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };

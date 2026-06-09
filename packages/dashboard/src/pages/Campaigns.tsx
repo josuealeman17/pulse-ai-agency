@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { Client, ReviewCampaign, CampaignType } from "@pulse/db";
 import { CAMPAIGN_PRESETS } from "@pulse/db";
 import { supabase } from "../lib/supabase.js";
-import { uploadRecipients, type SendReport } from "../lib/api.js";
+import { uploadRecipients, webhookUrl, rotateWebhookToken, type SendReport } from "../lib/api.js";
 import { Button, Card, Field, Input, PageHeader, Textarea } from "../components/ui.js";
 
 interface Agg {
@@ -140,6 +140,7 @@ export function Campaigns() {
 function CampaignCard({ campaign, agg, onChanged }: { campaign: ReviewCampaign; agg?: Agg; onChanged: () => void }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [hook, setHook] = useState(false);
   const [csv, setCsv] = useState("");
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState<SendReport | null>(null);
@@ -181,6 +182,7 @@ function CampaignCard({ campaign, agg, onChanged }: { campaign: ReviewCampaign; 
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setEditing((e) => !e)}>{editing ? "Close" : "Edit"}</Button>
+          <Button variant="secondary" onClick={() => setHook((h) => !h)}>{hook ? "Close" : "Automation"}</Button>
           <Button variant="secondary" onClick={() => setOpen((o) => !o)}>{open ? "Close" : "Add recipients"}</Button>
         </div>
       </div>
@@ -200,6 +202,8 @@ function CampaignCard({ campaign, agg, onChanged }: { campaign: ReviewCampaign; 
         <CampaignEditor campaign={campaign} onSaved={() => { setEditing(false); onChanged(); }} />
       )}
 
+      {hook && <WebhookPanel campaign={campaign} onRotated={onChanged} />}
+
       {open && (
         <div className="mt-4 border-t border-slate-100 pt-4">
           <Field label="Paste CSV (name,email — one per line)">
@@ -211,13 +215,92 @@ function CampaignCard({ campaign, agg, onChanged }: { campaign: ReviewCampaign; 
               <span className="text-sm text-slate-500">
                 {report.error
                   ? <span className="text-red-600">{report.error}</span>
-                  : `Sent ${report.sent} · added ${report.added} · skipped ${report.skipped} · failed ${report.failed}`}
+                  : `Sent ${report.sent} · added ${report.added} · deduped ${report.deduped} · skipped ${report.skipped} · failed ${report.failed}`}
               </span>
             )}
           </div>
         </div>
       )}
     </Card>
+  );
+}
+
+/** The automation panel: surfaces the per-campaign trigger URL + token so a
+ *  client's CRM / job system / Google Sheet can fire a review request on job-done.
+ *  The token is a secret (it lets anyone create requests for this campaign), so
+ *  it's revealed on demand and rotatable. */
+function WebhookPanel({ campaign, onRotated }: { campaign: ReviewCampaign; onRotated: () => void }) {
+  const [reveal, setReveal] = useState(false);
+  const [rotating, setRotating] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const url = webhookUrl(campaign.id);
+  const token = campaign.webhook_token ?? "";
+
+  function copy(label: string, text: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(label);
+      setTimeout(() => setCopied((c) => (c === label ? null : c)), 1500);
+    });
+  }
+
+  async function rotate() {
+    const msg = token
+      ? "Rotate the token? Any CRM/Sheet using the old one will stop working until you update it."
+      : "Generate a trigger token for this campaign?";
+    if (!confirm(msg)) return;
+    setRotating(true);
+    const r = await rotateWebhookToken(campaign.id);
+    setRotating(false);
+    if (r.error) alert(r.error);
+    else onRotated();
+  }
+
+  const curl =
+    `curl -X POST "${url}" \\\n` +
+    `  -H "Authorization: Bearer ${reveal ? token || "<TOKEN>" : "••••••••••••"}" \\\n` +
+    `  -H "Content-Type: application/json" \\\n` +
+    `  -d '{"name":"Jane Doe","email":"jane@example.com"}'`;
+
+  return (
+    <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+      <p className="text-xs text-slate-500">
+        Fire a review request automatically when a job is marked done. Point a CRM webhook, Zap, or
+        Google Sheet at this endpoint and authenticate with the token below. Re-fires of the same
+        email within 14 days are deduped, so retries won't double-email.
+      </p>
+
+      <Field label="Endpoint (POST)">
+        <div className="flex gap-2">
+          <Input readOnly value={url} className="font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
+          <Button variant="secondary" onClick={() => copy("url", url)}>{copied === "url" ? "Copied" : "Copy"}</Button>
+        </div>
+      </Field>
+
+      <Field label="Token (secret — sends as Bearer auth)">
+        {token ? (
+          <div className="flex gap-2">
+            <Input readOnly value={reveal ? token : "•".repeat(24)} className="font-mono text-xs"
+              onFocus={(e) => e.currentTarget.select()} />
+            <Button variant="secondary" onClick={() => setReveal((r) => !r)}>{reveal ? "Hide" : "Reveal"}</Button>
+            <Button variant="secondary" onClick={() => copy("token", token)}>{copied === "token" ? "Copied" : "Copy"}</Button>
+          </div>
+        ) : (
+          <p className="text-xs text-amber-600">No token yet — generate one to enable the trigger.</p>
+        )}
+      </Field>
+
+      <div>
+        <div className="mb-1 text-xs font-medium text-slate-500">Example request</div>
+        <pre className="overflow-x-auto rounded-lg bg-slate-900 p-3 text-[11px] leading-relaxed text-slate-100">{curl}</pre>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Button variant="secondary" onClick={rotate} disabled={rotating}>
+          {rotating ? "Working…" : token ? "Rotate token" : "Generate token"}
+        </Button>
+        {token && <span className="text-xs text-slate-400">Rotating invalidates the old token immediately.</span>}
+      </div>
+    </div>
   );
 }
 

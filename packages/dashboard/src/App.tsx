@@ -6,6 +6,7 @@ import { Overview } from "./pages/Overview.js";
 import { Clients } from "./pages/Clients.js";
 import { ClientEdit } from "./pages/ClientEdit.js";
 import { Campaigns } from "./pages/Campaigns.js";
+import { Reputation } from "./pages/Reputation.js";
 import { Conversations } from "./pages/Conversations.js";
 
 export function App() {
@@ -35,6 +36,7 @@ export function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<Overview />} />
+          <Route path="/reputation" element={<Reputation forcedClientId={clientId} />} />
           <Route path="/conversations" element={<Conversations />} />
           <Route path="/settings" element={<ClientEdit forcedId={clientId} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -52,6 +54,7 @@ export function App() {
         <Route path="/clients/new" element={<ClientEdit />} />
         <Route path="/clients/:id" element={<ClientEdit />} />
         <Route path="/campaigns" element={<Campaigns />} />
+        <Route path="/reputation" element={<Reputation />} />
         <Route path="/conversations" element={<Conversations />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

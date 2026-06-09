@@ -24,17 +24,34 @@ function page(accent: string, title: string, body: string): string {
 const accentOf = (c: Client) => c.accent_color || "#2563EB";
 const bizHeader = (c: Client) => `<div class="biz">${escapeHtml(c.name)}</div>`;
 
+/**
+ * A secondary, always-available link to the client's public Google review page.
+ * Google's review-gating policy prohibits *steering* only happy customers to the
+ * public platform; our private-feedback path must therefore never *prevent* an
+ * unhappy customer from posting publicly. We keep recovery the default action,
+ * but always leave the public option openly reachable (just not the loud CTA).
+ */
+function publicReviewLink(client: Client): string {
+  if (!client.google_review_url) return "";
+  return `<p class="muted" style="margin-top:18px">
+    You're also welcome to
+    <a href="${client.google_review_url}" target="_blank" rel="noopener"
+       style="color:${accentOf(client)};font-weight:600">share your review publicly on Google</a>.
+  </p>`;
+}
+
 export function feedbackFormPage(client: Client, token: string, apiUrl: string): string {
   return page(
     accentOf(client),
     `Share your feedback`,
     `${bizHeader(client)}
-     <h1>We're sorry we missed the mark</h1>
-     <p>Your honest feedback goes straight to our team so we can make it right. What could we have done better?</p>
+     <h1>How was your experience?</h1>
+     <p>Thanks for letting us know. Your feedback goes straight to our team so we can make things right — what could we have done better?</p>
      <form method="POST" action="${apiUrl}/feedback/${encodeURIComponent(token)}">
        <textarea name="feedback" placeholder="Tell us what happened…" required></textarea>
        <button type="submit">Send feedback</button>
-     </form>`,
+     </form>
+     ${publicReviewLink(client)}`,
   );
 }
 
@@ -48,7 +65,8 @@ export function thanksPage(client: Client, highRating: boolean): string {
        highRating
          ? "We're thrilled you had a great experience. Redirecting you to leave a review…"
          : "Thank you for sharing your feedback — it means a lot and helps us improve."
-     }</p>`,
+     }</p>
+     ${highRating ? "" : publicReviewLink(client)}`,
   );
 }
 

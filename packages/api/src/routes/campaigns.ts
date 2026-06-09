@@ -3,6 +3,7 @@ import type { Client } from "@pulse/db";
 import { getSupabase } from "../lib/supabase.js";
 import { baseUrl } from "../lib/baseUrl.js";
 import { requireAdmin } from "../lib/auth.js";
+import { generateToken } from "../lib/reviewRequests.js";
 import {
   addRecipientsAndSend,
   createCampaign,
@@ -103,6 +104,24 @@ campaignsRoute.post("/:id/recipients", async (c) => {
     return c.json({ error: "No valid recipients found", skipped }, 400);
   }
 
-  const report = await addRecipientsAndSend(campaign, client, recipients, baseUrl(c));
+  // Dedupe even manual pastes — re-pasting a list within the window is almost
+  // always an accident, and double-emailing a customer reads as spam.
+  const report = await addRecipientsAndSend(campaign, client, recipients, baseUrl(c), { dedupe: true });
   return c.json({ ...report, skipped: report.skipped + skipped });
+});
+
+/**
+ * POST /api/campaigns/:id/webhook-token — (re)generate the per-campaign trigger
+ * token. Returns the new token once; rotating invalidates any old one wired into
+ * a client's CRM/Sheet. Admin-only (whole route is requireAdmin).
+ */
+campaignsRoute.post("/:id/webhook-token", async (c) => {
+  const id = c.req.param("id");
+  const supabase = getSupabase();
+  if (!supabase) return c.json({ error: "Database not configured" }, 503);
+
+  const token = generateToken();
+  const { error } = await supabase.from("review_campaigns").update({ webhook_token: token }).eq("id", id);
+  if (error) return c.json({ error: error.message }, 500);
+  return c.json({ ok: true, webhookToken: token });
 });
