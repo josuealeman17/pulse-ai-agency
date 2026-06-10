@@ -109,6 +109,21 @@ export const styles = `
 
 @media (max-width: 480px) {
   .root { bottom: 16px; right: 16px; left: auto; }
-  .panel { position: fixed; inset: 0; width: 100vw; height: 100vh; max-height: 100vh; border-radius: 0; }
+  .panel {
+    position: fixed; inset: 0; width: 100vw;
+    /* 100vh ignores the mobile browser's URL/tool bar, which pushed the
+       composer below the visible viewport so users could never reach the
+       input. dvh tracks the *visible* viewport (and shrinks when the
+       on-screen keyboard opens), keeping the composer on screen. */
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  /* Keep the launcher bubble from floating on top of the full-screen panel. */
+  .root:has(.panel) .bubble { display: none; }
+  /* Clear the home indicator / browser chrome at the very bottom. */
+  .composer { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
 }
 `;
