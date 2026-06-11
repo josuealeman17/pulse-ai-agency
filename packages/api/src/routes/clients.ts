@@ -61,12 +61,16 @@ clientsRoute.post("/:id/calcom/connect", async (c) => {
   // client must pick which one the bot books into (and embeds on their site).
   const autoSelected = result.eventTypes.length === 1 ? result.eventTypes[0].id : null;
 
+  // Always (re)set the event type alongside the key. When we can't auto-select,
+  // null it out: any previously stored id belonged to the OLD account (possibly the
+  // shared agency account) and would be invalid for this key. The client then picks
+  // one via /calcom/event-type before live booking resumes.
   const { error } = await supabase
     .from("clients")
     .update({
       calcom_api_key: apiKey.trim(),
       booking_mode: "calcom",
-      ...(autoSelected ? { calcom_event_type_id: autoSelected } : {}),
+      calcom_event_type_id: autoSelected,
     })
     .eq("id", id);
   if (error) return c.json({ error: error.message }, 500);

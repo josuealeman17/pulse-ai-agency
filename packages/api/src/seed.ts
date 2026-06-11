@@ -25,10 +25,14 @@ const CLIENT = {
   logo_url: null as string | null,
   accent_color: "#0EA5E9",
 
-  // Booking (Model B): the client's event type on the Pulse Cal.com account.
-  booking_mode: "calcom" as const,
-  calcom_event_type_id: "5907825",
-  calcom_api_key: null as string | null, // null = use global CALCOM_API_KEY
+  // Booking: each client connects their OWN Cal.com account. Live booking requires
+  // the client's own calcom_api_key + an event type on THAT account. Leave these
+  // null here and have the client connect via the dashboard (POST /calcom/connect),
+  // OR paste the client's own key + event type id below. A null api key no longer
+  // falls back to the global agency key — it means 'capture' mode (record + notify).
+  booking_mode: "capture" as const,
+  calcom_event_type_id: null as string | null,
+  calcom_api_key: null as string | null,
   calcom_timezone: "America/Denver",
 };
 

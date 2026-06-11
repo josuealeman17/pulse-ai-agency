@@ -22,16 +22,22 @@ export interface ResolvedClientConfig {
 
 /**
  * Resolve a client's booking settings. Live Cal.com requires booking_mode='calcom',
- * an event type, and an API key (the client's own override, or the global Pulse key).
- * Otherwise we fall back to 'capture' mode (record the request + notify the client).
+ * an event type, AND the client's OWN connected API key.
+ *
+ * We intentionally do NOT fall back to the global agency key (env.calcomApiKey)
+ * here: doing so silently books a tenant's customers into the AGENCY's own Cal.com
+ * calendar instead of the client's. A client that is in 'calcom' mode but hasn't
+ * connected their own key is a misconfiguration — we drop to 'capture' mode (record
+ * the request + notify the client) rather than book into the wrong account.
+ *
+ * (The demo client carries the env key on its row so local/Phase-1 demos still work.)
  */
 function resolveBooking(client: Client): BookingSettings {
-  const apiKey = client.calcom_api_key ?? env.calcomApiKey;
-  if (client.booking_mode === "calcom" && client.calcom_event_type_id && apiKey) {
+  if (client.booking_mode === "calcom" && client.calcom_event_type_id && client.calcom_api_key) {
     return {
       mode: "calcom",
       calcom: {
-        apiKey,
+        apiKey: client.calcom_api_key,
         eventTypeId: client.calcom_event_type_id,
         timezone: client.calcom_timezone || env.calcomTimezone,
       },
@@ -58,9 +64,11 @@ const DEMO_CLIENT: Client = {
   logo_url: null,
   accent_color: "#2563EB",
   // Demo books into the global Cal.com event type via the env key (Model B mechanics).
+  // It carries the agency key directly so the demo keeps working now that
+  // resolveBooking no longer falls back to env.calcomApiKey for real clients.
   booking_mode: "calcom",
   calcom_event_type_id: env.calcomEventTypeId || null,
-  calcom_api_key: null,
+  calcom_api_key: env.calcomApiKey || null,
   calcom_timezone: env.calcomTimezone,
   google_oauth_refresh_token: null,
   google_account_id: null,

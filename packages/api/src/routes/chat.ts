@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import type { ChatMessage, ChatRequest } from "@pulse/db";
 import { resolveClientConfig } from "../lib/clientConfig.js";
+import { getDisplayReviews } from "../lib/reviewsDisplay.js";
 import { runChat } from "../lib/claude.js";
 import { persistSession } from "../lib/sessions.js";
 
@@ -22,6 +23,25 @@ chatRoute.get("/config", async (c) => {
     accentColor: config.client.accent_color,
     logoUrl: config.client.logo_url,
   });
+});
+
+/**
+ * GET /chat/reviews?clientId=...&min=4&limit=12 — public, read-only reviews for
+ * the website review-display embed. Serves demo reviews in fallback mode.
+ */
+chatRoute.get("/reviews", async (c) => {
+  const clientId = c.req.query("clientId");
+  if (!clientId) return c.json({ error: "clientId is required" }, 400);
+
+  const minRaw = Number(c.req.query("min"));
+  const limitRaw = Number(c.req.query("limit"));
+  const minStars = Number.isInteger(minRaw) && minRaw >= 1 && minRaw <= 5 ? minRaw : undefined;
+  const limit = Number.isInteger(limitRaw) && limitRaw > 0 ? limitRaw : undefined;
+
+  const data = await getDisplayReviews(clientId, { minStars, limit });
+  if (!data) return c.json({ error: "Unknown or inactive client" }, 404);
+
+  return c.json(data);
 });
 
 /** POST /chat — streams the assistant reply as Server-Sent Events. */

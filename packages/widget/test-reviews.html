@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pulse Reviews — Production Bundle Test</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #fff; color: #111; }
+      .page { max-width: 920px; margin: 0 auto; padding: 64px 24px; }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Reviews — Production Bundle Test</h1>
+      <p>Loads the built <code>dist/reviews.js</code> exactly how a real client would. Build first: <code>npm run build:widget</code>, then serve this folder.</p>
+
+      <h2>What our customers say</h2>
+      <div id="pulse-reviews"></div>
+    </div>
+
+    <!-- The snippet a client pastes onto their site -->
+    <script
+      src="./dist/reviews.js"
+      data-client-id="demo"
+      data-theme="light"
+      data-accent="#0EA5E9"
+      data-api="http://localhost:8787"
+      async
+    ></script>
+  </body>
+</html>
