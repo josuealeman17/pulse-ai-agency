@@ -41,6 +41,24 @@ clientsRoute.use("/:id/google/*", requireAdminOrOwner);
 // Inviting a client login is admin-only.
 clientsRoute.use("/:id/invite", requireAdmin);
 
+/** DELETE /api/clients/:id — permanently remove a client and all associated data. */
+clientsRoute.delete("/:id", requireAdmin, async (c) => {
+  const id = c.req.param("id");
+  const supabase = getSupabase();
+  if (!supabase) return c.json({ error: "Database not configured" }, 503);
+
+  const { data: existing } = await supabase.from("clients").select("id").eq("id", id).maybeSingle();
+  if (!existing) return c.json({ error: "Client not found" }, 404);
+
+  // admin_users.client_id has no ON DELETE CASCADE, so clear it first.
+  await supabase.from("admin_users").delete().eq("client_id", id);
+
+  const { error } = await supabase.from("clients").delete().eq("id", id);
+  if (error) return c.json({ error: error.message }, 500);
+
+  return c.json({ ok: true });
+});
+
 /** POST /api/clients/:id/calcom/connect  { apiKey }
  *  Validates the key by listing event types, stores it, switches the client to
  *  live ('calcom') booking, and auto-selects the event type when there's only one. */

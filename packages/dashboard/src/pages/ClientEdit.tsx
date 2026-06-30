@@ -6,6 +6,7 @@ import { Button, Card, Field, Input, PageHeader, Textarea } from "../components/
 import { CalcomConnection } from "../components/CalcomConnection.js";
 import { GoogleConnection } from "../components/GoogleConnection.js";
 import { ClientLoginInvite } from "../components/ClientLoginInvite.js";
+import { deleteClient } from "../lib/api.js";
 
 type ClientForm = Pick<
   Client,
@@ -37,6 +38,9 @@ export function ClientEdit({ forcedId }: { forcedId?: string } = {}) {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteInput, setDeleteInput] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (isNew) return;
@@ -113,6 +117,19 @@ export function ClientEdit({ forcedId }: { forcedId?: string } = {}) {
     navigate(clientMode ? "/" : "/clients");
   }
 
+  async function confirmDelete() {
+    if (!id) return;
+    setDeleting(true);
+    const result = await deleteClient(id);
+    if (result.error) {
+      setDeleting(false);
+      setShowDeleteModal(false);
+      setError(result.error);
+      return;
+    }
+    navigate("/clients");
+  }
+
   if (loading) return <p className="text-slate-400">Loading…</p>;
 
   const widgetBase = WIDGET_URL.replace(/\/$/, "");
@@ -126,6 +143,11 @@ export function ClientEdit({ forcedId }: { forcedId?: string } = {}) {
         subtitle="Business details, chatbot knowledge, booking, and branding."
         action={
           <div className="flex gap-2">
+            {!isNew && !clientMode && (
+              <Button variant="danger" onClick={() => { setDeleteInput(""); setShowDeleteModal(true); }}>
+                Delete client
+              </Button>
+            )}
             <Button variant="secondary" onClick={() => navigate(clientMode ? "/" : "/clients")}>Cancel</Button>
             <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
           </div>
@@ -225,6 +247,40 @@ export function ClientEdit({ forcedId }: { forcedId?: string } = {}) {
           </Card>
         )}
       </div>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h2 className="mb-1 text-lg font-semibold text-slate-900">Delete {client.name}?</h2>
+            <p className="mb-4 text-sm text-slate-500">
+              This permanently removes the client and all their data — campaigns, reviews, conversations, and
+              bot configuration. This cannot be undone.
+            </p>
+            <p className="mb-2 text-sm font-medium text-slate-700">
+              Type <span className="font-mono text-red-600">delete-client</span> to confirm:
+            </p>
+            <Input
+              value={deleteInput}
+              onChange={(e) => setDeleteInput(e.target.value)}
+              placeholder="delete-client"
+              className="mb-4"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setShowDeleteModal(false)} disabled={deleting}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={confirmDelete}
+                disabled={deleteInput !== "delete-client" || deleting}
+              >
+                {deleting ? "Deleting…" : "Delete permanently"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

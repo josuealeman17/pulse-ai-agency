@@ -46,6 +46,15 @@ export async function rotateWebhookToken(
   return res.json();
 }
 
+/** Permanently delete a client and all their data. Admin only. */
+export async function deleteClient(clientId: string): Promise<{ ok?: boolean; error?: string }> {
+  const res = await fetch(`${API_URL}/api/clients/${clientId}`, {
+    method: "DELETE",
+    headers: await authHeaders(),
+  });
+  return res.json();
+}
+
 export interface CalcomEventType {
   id: string;
   title: string;
