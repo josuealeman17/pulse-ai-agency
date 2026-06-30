@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getGoogleStatus, connectGoogle, disconnectGoogle, type GoogleStatus } from "../lib/api.js";
+import { getGoogleStatus, connectGoogle, disconnectGoogle, syncGoogleLocation, type GoogleStatus } from "../lib/api.js";
 import { Button } from "./ui.js";
 
 /** Connect a client's Google Business Profile via OAuth. The handshake bounces the
@@ -40,6 +40,20 @@ export function GoogleConnection({ clientId }: { clientId: string }) {
     else setMsg({ ok: false, text: r.error ?? "Could not start the Google connection." });
   }
 
+  async function syncLocation() {
+    setBusy(true);
+    setMsg(null);
+    const r = await syncGoogleLocation(clientId);
+    setBusy(false);
+    if (r.error) setMsg({ ok: false, text: r.error });
+    else if (r.locationId) {
+      setMsg({ ok: true, text: "Business location synced successfully." });
+      await refresh();
+    } else {
+      setMsg({ ok: false, text: "Connected but no business location found on this Google account. Make sure you signed in with the account that owns the Google Business Profile." });
+    }
+  }
+
   async function disconnect() {
     if (!window.confirm("Disconnect this Google Business Profile? Pulse will stop syncing reviews and posting responses.")) return;
     setBusy(true);
@@ -76,11 +90,17 @@ export function GoogleConnection({ clientId }: { clientId: string }) {
               <span className="text-slate-500">since {new Date(status.connectedAt).toLocaleDateString()}</span>
             )}
           </div>
-          {!status.locationId && (
-            <p className="text-xs text-amber-600">
-              Connected, but no business location selected yet — location selection unlocks once Google
-              approves Business Profile API access.
-            </p>
+          {status.locationId ? (
+            <p className="text-xs text-slate-500">Location: <code className="text-slate-700">{status.locationId}</code></p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-amber-600">
+                Connected, but no business location found yet. Click "Sync location" to discover it now.
+              </p>
+              <Button variant="secondary" onClick={syncLocation} disabled={busy}>
+                {busy ? "Syncing…" : "Sync location"}
+              </Button>
+            </div>
           )}
           <Button variant="danger" onClick={disconnect} disabled={busy}>Disconnect</Button>
         </>
