@@ -167,7 +167,7 @@ export async function disconnectGoogle(clientId: string): Promise<{ ok?: boolean
 /** Re-discover the GBP account + location (e.g. after Google approves API access). */
 export async function syncGoogleLocation(
   clientId: string,
-): Promise<{ ok?: boolean; accountId?: string | null; locationId?: string | null; error?: string }> {
+): Promise<{ ok?: boolean; accountId?: string | null; locationId?: string | null; debug?: string; accounts?: string[]; error?: string }> {
   const res = await fetch(`${API_URL}/api/clients/${clientId}/google/sync-location`, {
     method: "POST",
     headers: await authHeaders(),

@@ -262,34 +262,54 @@ const callbackHtml = (ok: boolean) =>
     { status: ok ? 200 : 400, headers: { "Content-Type": "text/html; charset=utf-8" } },
   );
 
-/** Best-effort: discover the client's GBP account + location after consent and
- *  store them (one-location model). Iterates all accounts the user can manage so
- *  it works for Manager-role users (whose personal account appears first but has
- *  no locations). Safe to re-run via /google/sync-location. */
-async function discoverAndStoreLocation(clientId: string, refreshToken: string): Promise<void> {
+interface DiscoverResult {
+  accountId: string | null;
+  locationId: string | null;
+  debug: string;
+  accounts: string[];
+}
+
+/** Discover the client's GBP account + location and store them. Iterates all
+ *  accounts so it works for Manager-role users (personal account appears first
+ *  but has no locations). Returns debug info for the sync-location endpoint. */
+async function discoverAndStoreLocation(clientId: string, refreshToken: string): Promise<DiscoverResult> {
   const accessToken = await refreshAccessToken(refreshToken);
-  if (!accessToken) return;
+  if (!accessToken) return { accountId: null, locationId: null, debug: "token_refresh_failed", accounts: [] };
+
   const accounts = await listAccounts(accessToken);
+  console.log("[google] listAccounts returned:", JSON.stringify(accounts));
+
+  if (accounts.length === 0) {
+    return { accountId: null, locationId: null, debug: "no_accounts_returned", accounts: [] };
+  }
+
   let foundAccount: (typeof accounts)[0] | null = null;
   let foundLocation: Awaited<ReturnType<typeof listLocations>>[0] | null = null;
   for (const account of accounts) {
     const locations = await listLocations(accessToken, account.name);
+    console.log("[google] listLocations for", account.name, "returned:", JSON.stringify(locations));
     if (locations.length > 0) {
       foundAccount = account;
       foundLocation = locations[0];
       break;
     }
   }
+
+  const accountNames = accounts.map((a) => a.name);
+  if (!foundAccount) {
+    return { accountId: null, locationId: null, debug: "no_locations_in_any_account", accounts: accountNames };
+  }
+
   const supabase = getSupabase();
-  if (!supabase || !foundAccount) return;
+  if (!supabase) return { accountId: null, locationId: null, debug: "no_supabase", accounts: accountNames };
+
+  const locationId = foundLocation ? `${foundAccount.name}/${foundLocation.name}` : null;
   await supabase
     .from("clients")
-    .update({
-      google_account_id: foundAccount.name,
-      // v1 location.name is "locations/456"; prefix with the account for v4 review calls.
-      google_location_id: foundLocation ? `${foundAccount.name}/${foundLocation.name}` : null,
-    })
+    .update({ google_account_id: foundAccount.name, google_location_id: locationId })
     .eq("id", clientId);
+
+  return { accountId: foundAccount.name, locationId, debug: "ok", accounts: accountNames };
 }
 
 /** POST /api/clients/:id/google/connect  { returnTo? }
@@ -406,14 +426,8 @@ clientsRoute.post("/:id/google/sync-location", async (c) => {
     .maybeSingle<{ google_oauth_refresh_token: string | null }>();
   if (!data?.google_oauth_refresh_token) return c.json({ error: "Not connected to Google" }, 400);
 
-  await discoverAndStoreLocation(id, data.google_oauth_refresh_token);
-
-  const { data: after } = await supabase
-    .from("clients")
-    .select("google_account_id, google_location_id")
-    .eq("id", id)
-    .maybeSingle<{ google_account_id: string | null; google_location_id: string | null }>();
-  return c.json({ ok: true, accountId: after?.google_account_id ?? null, locationId: after?.google_location_id ?? null });
+  const result = await discoverAndStoreLocation(id, data.google_oauth_refresh_token);
+  return c.json({ ok: true, ...result });
 });
 
 /** GET /api/clients/:id/google/reviews — stored reviews + our reply state. */

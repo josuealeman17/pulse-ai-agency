@@ -45,12 +45,14 @@ export function GoogleConnection({ clientId }: { clientId: string }) {
     setMsg(null);
     const r = await syncGoogleLocation(clientId);
     setBusy(false);
-    if (r.error) setMsg({ ok: false, text: r.error });
-    else if (r.locationId) {
+    if (r.error) {
+      setMsg({ ok: false, text: r.error });
+    } else if (r.locationId) {
       setMsg({ ok: true, text: "Business location synced successfully." });
       await refresh();
     } else {
-      setMsg({ ok: false, text: "Connected but no business location found on this Google account. Make sure you signed in with the account that owns the Google Business Profile." });
+      const detail = r.debug ? ` [${r.debug}${r.accounts?.length ? `, accounts: ${r.accounts.join(", ")}` : ""}]` : "";
+      setMsg({ ok: false, text: `No business location found.${detail} Make sure you signed in with the Google account that manages this Business Profile.` });
     }
   }
 
