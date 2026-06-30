@@ -262,23 +262,32 @@ const callbackHtml = (ok: boolean) =>
     { status: ok ? 200 : 400, headers: { "Content-Type": "text/html; charset=utf-8" } },
   );
 
-/** Best-effort: discover the client's single GBP account + location after consent
- *  and store them (one-location model). No-ops cleanly until Google approves API
- *  access (the list calls return empty). Safe to re-run via /google/sync-location. */
+/** Best-effort: discover the client's GBP account + location after consent and
+ *  store them (one-location model). Iterates all accounts the user can manage so
+ *  it works for Manager-role users (whose personal account appears first but has
+ *  no locations). Safe to re-run via /google/sync-location. */
 async function discoverAndStoreLocation(clientId: string, refreshToken: string): Promise<void> {
   const accessToken = await refreshAccessToken(refreshToken);
   if (!accessToken) return;
-  const account = (await listAccounts(accessToken))[0];
-  if (!account) return;
-  const location = (await listLocations(accessToken, account.name))[0];
+  const accounts = await listAccounts(accessToken);
+  let foundAccount: (typeof accounts)[0] | null = null;
+  let foundLocation: Awaited<ReturnType<typeof listLocations>>[0] | null = null;
+  for (const account of accounts) {
+    const locations = await listLocations(accessToken, account.name);
+    if (locations.length > 0) {
+      foundAccount = account;
+      foundLocation = locations[0];
+      break;
+    }
+  }
   const supabase = getSupabase();
-  if (!supabase) return;
+  if (!supabase || !foundAccount) return;
   await supabase
     .from("clients")
     .update({
-      google_account_id: account.name,
+      google_account_id: foundAccount.name,
       // v1 location.name is "locations/456"; prefix with the account for v4 review calls.
-      google_location_id: location ? `${account.name}/${location.name}` : null,
+      google_location_id: foundLocation ? `${foundAccount.name}/${foundLocation.name}` : null,
     })
     .eq("id", clientId);
 }
